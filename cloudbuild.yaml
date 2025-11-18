@@ -5,7 +5,6 @@ steps:
     args:
       - -c
       - |
-        cd terraform
         terraform init
 
   - name: hashicorp/terraform:1.5.0
@@ -14,7 +13,6 @@ steps:
     args:
       - -c
       - |
-        cd terraform
         terraform plan \
           -var-file="environments/${_ENV}.tfvars"
 
@@ -24,7 +22,6 @@ steps:
     args:
       - -c
       - |
-        cd terraform
         terraform apply \
           -auto-approve \
           -var-file="environments/${_ENV}.tfvars"
