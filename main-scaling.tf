@@ -1,13 +1,16 @@
-# Data source to get the existing Cloud Run service
+# Read existing Cloud Run service
 data "google_cloud_run_service" "existing" {
   name     = var.service_name
   location = var.region
 }
 
-# Update only the scaling configuration
+# Apply only scaling changes
 resource "google_cloud_run_service" "scaling_update" {
   name     = var.service_name
   location = var.region
+  project  = var.project_id
+
+  autogenerate_revision_name = true
 
   template {
     metadata {
@@ -20,13 +23,15 @@ resource "google_cloud_run_service" "scaling_update" {
     }
 
     spec {
-      container_concurrency = var.max_instance_request_concurrency
-      
+      container_concurrency = data.google_cloud_run_service.existing.template[0].spec[0].container_concurrency
+      timeout_seconds       = data.google_cloud_run_service.existing.template[0].spec[0].timeout_seconds
+      service_account_name  = data.google_cloud_run_service.existing.template[0].spec[0].service_account_name
+
       containers {
-        # Preserve the existing image
+        # Preserve existing image
         image = data.google_cloud_run_service.existing.template[0].spec[0].containers[0].image
-        
-        # Preserve existing environment variables
+
+        # Preserve existing env vars
         dynamic "env" {
           for_each = data.google_cloud_run_service.existing.template[0].spec[0].containers[0].env
           content {
@@ -43,13 +48,11 @@ resource "google_cloud_run_service" "scaling_update" {
     latest_revision = true
   }
 
-  autogenerate_revision_name = true
-
   lifecycle {
     ignore_changes = [
-      template[0].spec[0].containers[0].image,  # Don't change the image
-      template[0].spec[0].containers[0].env,    # Don't change env vars
-      metadata[0].annotations,                   # Preserve other annotations
+      template[0].spec[0].containers[0].image,
+      template[0].spec[0].containers[0].env,
+      metadata[0].annotations,
     ]
   }
 }
