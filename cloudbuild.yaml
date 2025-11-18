@@ -1,39 +1,36 @@
 steps:
-  # Step 1: Terraform Init
-  - name: 'hashicorp/terraform:1.5.0'
-    id: 'Terraform Init'
-    dir: 'scaling'
-    entrypoint: 'sh'
+  - name: hashicorp/terraform:1.5.0
+    id: Terraform Init
+    entrypoint: sh
     args:
-      - '-c'
+      - -c
       - |
+        cd terraform
         terraform init
 
-  # Step 2: Terraform Plan (for visibility in logs)
-  - name: 'hashicorp/terraform:1.5.0'
-    id: 'Terraform Plan'
-    dir: 'scaling'
-    entrypoint: 'sh'
+  - name: hashicorp/terraform:1.5.0
+    id: Terraform Plan
+    entrypoint: sh
     args:
-      - '-c'
+      - -c
       - |
-        echo "Planning scaling changes for ${_ENV} environment..."
-        terraform plan -var-file=environments/${_ENV}-scaling.tfvars
+        cd terraform
+        terraform plan \
+          -var-file="environments/${_ENV}.tfvars"
 
-  # Step 3: Terraform Apply (update scaling)
-  - name: 'hashicorp/terraform:1.5.0'
-    id: 'Terraform Apply'
-    dir: 'scaling'
-    entrypoint: 'sh'
+  - name: hashicorp/terraform:1.5.0
+    id: Terraform Apply
+    entrypoint: sh
     args:
-      - '-c'
+      - -c
       - |
-        echo "Applying scaling changes for ${_ENV} environment..."
-        terraform apply -auto-approve -var-file=environments/${_ENV}-scaling.tfvars
-        echo "✅ Scaling configuration updated successfully!"
+        cd terraform
+        terraform apply \
+          -auto-approve \
+          -var-file="environments/${_ENV}.tfvars"
 
 substitutions:
-  _ENV: 'dev'  # default environment, can be overridden in the trigger
+  _ENV: "dev"
 
 options:
   logging: CLOUD_LOGGING_ONLY
