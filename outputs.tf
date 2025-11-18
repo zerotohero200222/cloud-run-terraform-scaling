@@ -1,11 +1,14 @@
 output "service_name" {
-  value = var.service_name
-}
-
-output "max_instances" {
-  value = var.max_instances
+  description = "Name of Cloud Run service"
+  value       = data.google_cloud_run_service.existing.name
 }
 
 output "service_url" {
-  value = data.google_cloud_run_v2_service.existing.uri
+  description = "URL of Cloud Run service"
+  value       = data.google_cloud_run_service.existing.status[0].url
+}
+
+output "max_instances" {
+  description = "Updated max instance count"
+  value       = var.max_instances
 }
