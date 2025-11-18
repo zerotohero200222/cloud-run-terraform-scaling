@@ -20,32 +20,35 @@ data "google_cloud_run_v2_service" "existing" {
   location = var.region
 }
 
+############################################
+# Cloud Run v2 – manage ONLY max instances
+############################################
+
+# NOTE: providers (google) and terraform { required_providers } 
+# stay in your existing provider.tf / versions.tf if you still have them.
+# This file only defines the Cloud Run service resource.
+
 resource "google_cloud_run_v2_service" "scaling" {
+  project  = var.project_id
   name     = var.service_name
   location = var.region
 
+  # Allow Terraform to update the service config
+  deletion_protection = false
+
   template {
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
-      }
-    }
-
+    # We must specify at least one container image.
+    # Use the SAME image as your existing Cloud Run service.
+    # If your service currently uses a different image,
+    # update the image below or make it a variable.
     containers {
-      image = data.google_cloud_run_v2_service.existing.template[0].containers[0].image
+      image = "us-docker.pkg.dev/cloudrun/container/hello"
     }
-  }
 
-  traffic {
-    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
-    percent = 100
-  }
-
-  lifecycle {
-    ignore_changes = [
-      template[0].containers[0].image,
-      template[0].metadata[0].annotations["client.knative.dev/user-image"],
-      client
-    ]
+    # 🔥 This is the only thing you care about:
+    scaling {
+      max_instance_count = var.max_instances
+    }
   }
 }
+
