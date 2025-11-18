@@ -14,35 +14,43 @@ provider "google" {
   region  = var.region
 }
 
-data "google_cloud_run_v2_service" "existing" {
-  project  = var.project_id
+data "google_cloud_run_service" "existing" {
   name     = var.service_name
   location = var.region
 }
 
-
-############################################
-# Cloud Run v2 – Manage ONLY max instances
-############################################
-
-resource "google_cloud_run_v2_service" "scaling" {
-  project  = var.project_id
+resource "google_cloud_run_service" "scaling_update" {
   name     = var.service_name
   location = var.region
 
   template {
-    containers {
-      # Use the SAME image your Cloud Run service actually runs
-      # Replace if needed
-      image = "us-docker.pkg.dev/cloudrun/container/hello"
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
+      }
     }
 
-    # Only max instance scaling (as you requested)
-    scaling {
-      max_instance_count = var.max_instances
+    spec {
+      containers {
+        image = data.google_cloud_run_service.existing.template[0].spec[0].containers[0].image
+      }
     }
   }
+
+  autogenerate_revision_name = true
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].spec[0].containers[0].image
+    ]
+  }
 }
+
 
 
 
