@@ -20,16 +20,17 @@ data "google_cloud_run_v2_service" "existing" {
   location = var.region
 }
 
-# Apply max instance scaling
 resource "google_cloud_run_v2_service" "scaling" {
   name     = var.service_name
   location = var.region
 
-  scaling {
-    max_instance_count = var.max_instances
-  }
-
   template {
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
+      }
+    }
+
     containers {
       image = data.google_cloud_run_v2_service.existing.template[0].containers[0].image
     }
@@ -43,7 +44,8 @@ resource "google_cloud_run_v2_service" "scaling" {
   lifecycle {
     ignore_changes = [
       template[0].containers[0].image,
-      template[0].containers[0].env,
+      template[0].metadata[0].annotations["client.knative.dev/user-image"],
+      client
     ]
   }
 }
