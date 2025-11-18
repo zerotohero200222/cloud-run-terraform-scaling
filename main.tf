@@ -40,16 +40,19 @@ resource "google_cloud_run_service" "scaling_update" {
   autogenerate_revision_name = true
 
   traffic {
-    percent         = 100
     latest_revision = true
+    percent         = 100
   }
 
   lifecycle {
     ignore_changes = [
-      template[0].spec[0].containers[0].image
+      template[0].spec[0].containers[0].image,
+      template[0].metadata[0].annotations,
+      template[0].spec[0].containers[0].env,
     ]
   }
 }
+
 
 
 
