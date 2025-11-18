@@ -14,6 +14,13 @@ provider "google" {
   region  = var.region
 }
 
+data "google_cloud_run_v2_service" "existing" {
+  project  = var.project_id
+  name     = var.service_name
+  location = var.region
+}
+
+
 ############################################
 # Cloud Run v2 – Manage ONLY max instances
 ############################################
