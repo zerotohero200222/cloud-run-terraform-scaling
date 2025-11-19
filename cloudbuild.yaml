@@ -6,28 +6,73 @@ steps:
     args:
       - -c
       - |
+        echo "🔧 Initializing Terraform..."
         terraform init
+        echo "✅ Terraform initialized"
 
-  # Step 2: Terraform Plan
+  # Step 2: Import existing service if not in state
+  - name: hashicorp/terraform:1.5.0
+    id: Import Existing Service
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        echo "🔍 Checking Terraform state..."
+        
+        # Check if service is already in state
+        if terraform state list 2>/dev/null | grep -q "google_cloud_run_service.service"; then
+          echo "✅ Service already in Terraform state, skipping import"
+        else
+          echo "📥 Service not in state, importing..."
+          terraform import \
+            -var-file="environments/${_ENV}.tfvars" \
+            google_cloud_run_service.service \
+            "locations/${_REGION}/namespaces/${_PROJECT_ID}/services/${_SERVICE_NAME}" || {
+            echo "⚠️  Import failed, service may already be managed"
+          }
+          echo "✅ Import completed"
+        fi
+
+  # Step 3: Terraform Plan
   - name: hashicorp/terraform:1.5.0
     id: Terraform Plan
     entrypoint: sh
     args:
       - -c
       - |
-        terraform plan -var-file=environments/${_ENV}.tfvars
+        echo "📋 Planning Terraform changes..."
+        terraform plan \
+          -var-file="environments/${_ENV}.tfvars" \
+          -out=tfplan
+        echo "✅ Plan completed"
 
-  # Step 3: Terraform Apply
+  # Step 4: Terraform Apply
   - name: hashicorp/terraform:1.5.0
     id: Terraform Apply
     entrypoint: sh
     args:
       - -c
       - |
-        terraform apply -auto-approve -var-file=environments/${_ENV}.tfvars
+        echo "🚀 Applying Terraform changes..."
+        terraform apply \
+          -auto-approve \
+          tfplan
+        echo "✅ Apply completed successfully"
+        
+        # Show outputs
+        echo ""
+        echo "📊 Deployment Summary:"
+        terraform output
 
 substitutions:
   _ENV: dev
+  _PROJECT_ID: eastern-augury-477909-q6
+  _REGION: us-central1
+  _SERVICE_NAME: frontend-web
+
+timeout: 600s
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
