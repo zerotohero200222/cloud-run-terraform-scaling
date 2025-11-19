@@ -1,48 +1,35 @@
 steps:
-  # Step 0: Terraform Init
   - name: hashicorp/terraform:1.5.0
     id: Terraform Init
     entrypoint: sh
     args:
       - -c
       - |
-        echo "🔧 Initializing Terraform..."
         terraform init -input=false
-        echo "✅ Terraform initialized"
 
-
-  # Step 1: Import Existing Service (only if not in state)
   - name: hashicorp/terraform:1.5.0
     id: Import Existing Service
     entrypoint: sh
     args:
       - -c
       - |
-        echo "🔍 Checking Terraform state..."
         if terraform state list 2>/dev/null | grep -q "google_cloud_run_service.service"; then
-          echo "✅ Service already in Terraform state. Skipping import."
+          echo "Service already imported"
         else
-          echo "📥 Importing Cloud Run service..."
           terraform import \
             -input=false \
-            -var="project_id=${_PROJECT_ID}" \
-            -var="region=${_REGION}" \
-            -var="service_name=${_SERVICE_NAME}" \
+            -var-file="environments/${_ENV}.tfvars" \
             google_cloud_run_service.service \
-            "locations/${_REGION}/namespaces/${_PROJECT_ID}/services/${_SERVICE_NAME}" \
-            && echo "✅ Import successful" \
-            || echo "⚠️ Import failed (service may already be managed)"
+            "locations/${_REGION}/namespaces/${_PROJECT_ID}/services/${_SERVICE_NAME}" ||
+            echo "Import may have failed but continuing"
         fi
 
-
-  # Step 2: Terraform Plan
   - name: hashicorp/terraform:1.5.0
     id: Terraform Plan
     entrypoint: sh
     args:
       - -c
       - |
-        echo "📋 Running Terraform plan..."
         terraform plan \
           -input=false \
           -var="project_id=${_PROJECT_ID}" \
@@ -50,23 +37,15 @@ steps:
           -var="service_name=${_SERVICE_NAME}" \
           -var-file="environments/${_ENV}.tfvars" \
           -out=tfplan
-        echo "✅ Plan created (tfplan)"
 
-
-  # Step 3: Terraform Apply
   - name: hashicorp/terraform:1.5.0
     id: Terraform Apply
     entrypoint: sh
     args:
       - -c
       - |
-        echo "🚀 Applying Terraform changes..."
         terraform apply -input=false -auto-approve tfplan
-        echo "✅ Apply completed"
-
-        echo "📊 Outputs:"
-        terraform output || echo "⚠️ No outputs defined"
-
+        terraform output
 
 substitutions:
   _ENV: dev
