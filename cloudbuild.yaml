@@ -1,5 +1,5 @@
 steps:
-  # Step 1: Terraform Init
+  # Step 0: Terraform Init
   - name: hashicorp/terraform:1.5.0
     id: Terraform Init
     entrypoint: sh
@@ -7,10 +7,11 @@ steps:
       - -c
       - |
         echo "🔧 Initializing Terraform..."
-        terraform init
+        terraform init -input=false
         echo "✅ Terraform initialized"
 
-  # Step 2: Import existing service if not in state
+
+  # Step 1: Import Existing Service (only if not in state)
   - name: hashicorp/terraform:1.5.0
     id: Import Existing Service
     entrypoint: sh
@@ -18,35 +19,41 @@ steps:
       - -c
       - |
         echo "🔍 Checking Terraform state..."
-        
-        # Check if service is already in state
         if terraform state list 2>/dev/null | grep -q "google_cloud_run_service.service"; then
-          echo "✅ Service already in Terraform state, skipping import"
+          echo "✅ Service already in Terraform state. Skipping import."
         else
-          echo "📥 Service not in state, importing..."
+          echo "📥 Importing Cloud Run service..."
           terraform import \
-            -var-file="environments/${_ENV}.tfvars" \
+            -input=false \
+            -var="project_id=${_PROJECT_ID}" \
+            -var="region=${_REGION}" \
+            -var="service_name=${_SERVICE_NAME}" \
             google_cloud_run_service.service \
-            "locations/${_REGION}/namespaces/${_PROJECT_ID}/services/${_SERVICE_NAME}" || {
-            echo "⚠️  Import failed, service may already be managed"
-          }
-          echo "✅ Import completed"
+            "locations/${_REGION}/namespaces/${_PROJECT_ID}/services/${_SERVICE_NAME}" \
+            && echo "✅ Import successful" \
+            || echo "⚠️ Import failed (service may already be managed)"
         fi
 
-  # Step 3: Terraform Plan
+
+  # Step 2: Terraform Plan
   - name: hashicorp/terraform:1.5.0
     id: Terraform Plan
     entrypoint: sh
     args:
       - -c
       - |
-        echo "📋 Planning Terraform changes..."
+        echo "📋 Running Terraform plan..."
         terraform plan \
+          -input=false \
+          -var="project_id=${_PROJECT_ID}" \
+          -var="region=${_REGION}" \
+          -var="service_name=${_SERVICE_NAME}" \
           -var-file="environments/${_ENV}.tfvars" \
           -out=tfplan
-        echo "✅ Plan completed"
+        echo "✅ Plan created (tfplan)"
 
-  # Step 4: Terraform Apply
+
+  # Step 3: Terraform Apply
   - name: hashicorp/terraform:1.5.0
     id: Terraform Apply
     entrypoint: sh
@@ -54,15 +61,12 @@ steps:
       - -c
       - |
         echo "🚀 Applying Terraform changes..."
-        terraform apply \
-          -auto-approve \
-          tfplan
-        echo "✅ Apply completed successfully"
-        
-        # Show outputs
-        echo ""
-        echo "📊 Deployment Summary:"
-        terraform output
+        terraform apply -input=false -auto-approve tfplan
+        echo "✅ Apply completed"
+
+        echo "📊 Outputs:"
+        terraform output || echo "⚠️ No outputs defined"
+
 
 substitutions:
   _ENV: dev
@@ -70,8 +74,8 @@ substitutions:
   _REGION: us-central1
   _SERVICE_NAME: frontend-web
 
-timeout: 600s
-
 options:
   logging: CLOUD_LOGGING_ONLY
+
+timeout: 600s
 
