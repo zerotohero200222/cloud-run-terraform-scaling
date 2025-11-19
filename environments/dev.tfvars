@@ -1,1 +1,1 @@
-max_instances = 10
+max_instances = 8
