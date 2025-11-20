@@ -4,6 +4,6 @@ service_name                     = "frontend-web"
 environment                      = "dev"
 
 # Scaling Configuration
-max_instances                    = 10
+max_instances                    = 20
 max_instance_request_concurrency = 100
 
