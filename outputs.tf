@@ -1,3 +1,13 @@
+output "project_id" {
+  description = "GCP Project ID"
+  value       = var.project_id
+}
+
+output "region" {
+  description = "GCP Region"
+  value       = var.region
+}
+
 output "service_name" {
   description = "Name of Cloud Run service"
   value       = google_cloud_run_service.service.name
@@ -6,6 +16,11 @@ output "service_name" {
 output "service_url" {
   description = "Cloud Run service URL"
   value       = google_cloud_run_service.service.status[0].url
+}
+
+output "environment" {
+  description = "Deployment environment"
+  value       = var.environment
 }
 
 output "max_instances" {
