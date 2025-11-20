@@ -6,7 +6,7 @@ steps:
     args:
       - -c
       - |
-        terraform init
+        terraform init -input=false
 
   # Step 2: Import existing service (only once)
   - name: hashicorp/terraform:1.5.0
@@ -21,9 +21,13 @@ steps:
         else
           echo "📥 Importing service..."
           terraform import \
-            -var-file=environments/${_ENV}.tfvars \
+            -input=false \
+            -var="project_id=${_PROJECT_ID}" \
+            -var="region=${_REGION}" \
+            -var="service_name=${_SERVICE_NAME}" \
+            -var-file="environments/${_ENV}.tfvars" \
             google_cloud_run_service.service \
-            "locations/\$(terraform output -raw region 2>/dev/null || echo 'us-central1')/namespaces/\$(terraform output -raw project_id 2>/dev/null || grep 'project_id' environments/${_ENV}.tfvars | cut -d'=' -f2 | tr -d ' "' )/services/\$(grep 'service_name' environments/${_ENV}.tfvars | cut -d'=' -f2 | tr -d ' "')" \
+            "locations/${_REGION}/namespaces/${_PROJECT_ID}/services/${_SERVICE_NAME}" \
             || echo "⚠️ Import failed, but continuing"
         fi
 
@@ -34,7 +38,14 @@ steps:
     args:
       - -c
       - |
-        terraform plan -var-file=environments/${_ENV}.tfvars
+        echo "📋 Running Terraform plan..."
+        terraform plan \
+          -input=false \
+          -var="project_id=${_PROJECT_ID}" \
+          -var="region=${_REGION}" \
+          -var="service_name=${_SERVICE_NAME}" \
+          -var-file="environments/${_ENV}.tfvars" \
+          -out=tfplan
 
   # Step 4: Terraform Apply
   - name: hashicorp/terraform:1.5.0
@@ -43,15 +54,20 @@ steps:
     args:
       - -c
       - |
-        terraform apply -auto-approve -var-file=environments/${_ENV}.tfvars
+        echo "🚀 Applying Terraform changes..."
+        terraform apply -input=false -auto-approve tfplan
         echo "📊 Outputs:"
         terraform output
 
 substitutions:
-  _ENV: dev  # Only this needs to change per trigger
+  _ENV: dev
+  _PROJECT_ID: eastern-augury-477909-q6
+  _REGION: us-central1
+  _SERVICE_NAME: frontend-web
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
 timeout: 600s
 
 
