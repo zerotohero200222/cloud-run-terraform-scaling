@@ -63,7 +63,7 @@ substitutions:
   _ENV: prod
   _PROJECT_ID: eastern-augury-477909-q6
   _REGION: us-central1
-  _SERVICE_NAME: frontend-web-static
+  _SERVICE_NAME: hello
 
 options:
   logging: CLOUD_LOGGING_ONLY
