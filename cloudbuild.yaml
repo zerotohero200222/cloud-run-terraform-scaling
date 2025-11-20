@@ -5,31 +5,50 @@ steps:
     entrypoint: sh
     args:
       - -c
-      - terraform init -input=false
+      - |
+        terraform init
 
-  # Step 2: Terraform Plan
+  # Step 2: Import existing service (only once)
+  - name: hashicorp/terraform:1.5.0
+    id: Import Existing Service
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        echo "🔍 Checking if service already imported..."
+        if terraform state list 2>/dev/null | grep -q "google_cloud_run_service.service"; then
+          echo "✅ Already imported. Skipping."
+        else
+          echo "📥 Importing service..."
+          terraform import \
+            -var-file=environments/${_ENV}.tfvars \
+            google_cloud_run_service.service \
+            "locations/\$(terraform output -raw region 2>/dev/null || echo 'us-central1')/namespaces/\$(terraform output -raw project_id 2>/dev/null || grep 'project_id' environments/${_ENV}.tfvars | cut -d'=' -f2 | tr -d ' "' )/services/\$(grep 'service_name' environments/${_ENV}.tfvars | cut -d'=' -f2 | tr -d ' "')" \
+            || echo "⚠️ Import failed, but continuing"
+        fi
+
+  # Step 3: Terraform Plan
   - name: hashicorp/terraform:1.5.0
     id: Terraform Plan
     entrypoint: sh
     args:
       - -c
       - |
-        terraform plan \
-          -input=false \
-          -var-file=environments/${_ENV}.tfvars \
-          -out=tfplan
+        terraform plan -var-file=environments/${_ENV}.tfvars
 
-  # Step 3: Terraform Apply
+  # Step 4: Terraform Apply
   - name: hashicorp/terraform:1.5.0
     id: Terraform Apply
     entrypoint: sh
     args:
       - -c
       - |
-        terraform apply -input=false -auto-approve tfplan
+        terraform apply -auto-approve -var-file=environments/${_ENV}.tfvars
+        echo "📊 Outputs:"
+        terraform output
 
 substitutions:
-  _ENV: dev
+  _ENV: dev  # Only this needs to change per trigger
 
 options:
   logging: CLOUD_LOGGING_ONLY
